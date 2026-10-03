@@ -1,0 +1,1 @@
+ALTER TABLE meals ADD COLUMN image_url VARCHAR(500);
