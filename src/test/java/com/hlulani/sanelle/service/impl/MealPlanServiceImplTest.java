@@ -61,6 +61,17 @@ class MealPlanServiceImplTest {
     }
 
     @Test
+    void cheesesNotNamedCheeseAreStillDairy() {
+        // mirrors "Grilled Peach, Burrata, and Tomato Salad" and "Honey-Pecan Brie Sweet Potato Rounds"
+        Meal burrata = mealWithIngredients("Grilled Peach, Burrata, and Tomato Salad", MealType.LUNCH,
+                List.of("lunch"), "Peach", "Burrata", "Tomato", "Basil", "Pistachios");
+        Meal brie = mealWithIngredients("Brie Rounds", MealType.SNACK, List.of(), "Sweet potato", "Brie", "Pecans");
+
+        assertThat(service.classifyProtein(burrata)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGETARIAN);
+        assertThat(service.classifyProtein(brie)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGETARIAN);
+    }
+
+    @Test
     void nutButterIsNotMisclassifiedAsDairy() {
         // mirrors "Apple with Almond Butter" — plant-based despite containing "butter"
         Meal meal = mealWithIngredients("Apple with Almond Butter", MealType.SNACK,

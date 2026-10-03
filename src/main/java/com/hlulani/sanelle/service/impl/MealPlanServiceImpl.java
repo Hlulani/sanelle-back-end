@@ -24,7 +24,9 @@ public class MealPlanServiceImpl implements MealPlanService {
 
     private static final Set<String> DAIRY_EGG_HONEY_KEYWORDS = Set.of(
             "egg", "milk", "cheese", "feta", "mozzarella", "parmesan", "yogurt", "yoghurt",
-            "cream", "ghee", "whey", "honey"
+            "cream", "ghee", "whey", "honey", "burrata", "brie", "cheddar", "ricotta",
+            "halloumi", "paneer", "kefir", "mascarpone", "labneh", "skyr", "quark",
+            "gouda", "camembert", "casein", "mayonnaise", "mayo"
     );
 
     // "butter" alone is dairy, but nut/seed butters (peanut butter, almond butter, tahini) are plant-based
