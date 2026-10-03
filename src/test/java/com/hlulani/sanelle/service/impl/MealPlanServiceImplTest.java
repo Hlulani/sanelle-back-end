@@ -148,6 +148,51 @@ class MealPlanServiceImplTest {
                 .doesNotContain("inflamm", "fibroid", "hormone", "iron", "fibre", "fiber");
     }
 
+    // --- allergies and swaps ---
+
+    @Test
+    void plansNeverIncludeAMealWithAListedAllergen() {
+        Meal tahiniBowl = mealWithIngredients("Farro Bowl with Tahini", MealType.LUNCH, List.of(), "Farro, cooked", "Tahini");
+        Meal lentilSoup = mealWithIngredients("Lentil Soup", MealType.LUNCH, List.of(), "Lentils", "Vegetable stock");
+        Meal salad = mealWithIngredients("Bean Salad", MealType.LUNCH, List.of(), "White beans", "Olive oil");
+        when(mealRepository.findAll()).thenReturn(List.of(tahiniBowl, lentilSoup, salad));
+
+        MealPlanResponse response = service.generate(new GenerateMealPlanRequest(
+                "DAYS_7", "FASTING_16_8", "ANY", null, List.of("SESAME", "CELERY"), List.of()));
+
+        assertThat(response.daysPlan()).allSatisfy(day ->
+                assertThat(day.meals()).extracting(PlannedMeal::name).containsOnly("Bean Salad"));
+        assertThat(response.daysPlan().get(0).meals().get(0).reasons())
+                .contains("Leaves out the allergens you listed")
+                .noneMatch(r -> r.toLowerCase().contains("safe"));
+    }
+
+    @Test
+    void swapOptionsApplyTheSameRulesAndNeverOfferTheCurrentMeal() {
+        Meal current = mealWithIngredients("Current", MealType.DINNER, List.of(), "Beans");
+        Meal withMilk = mealWithIngredients("Creamy Pasta", MealType.DINNER, List.of(), "Cooked pasta", "Milk (or oat milk)");
+        Meal withMushroom = mealWithIngredients("Mushroom Rice", MealType.DINNER, List.of(), "Rice", "Mushrooms");
+        Meal ok = mealWithIngredients("Lentil Stew", MealType.DINNER, List.of(), "Lentils", "Tomato passata");
+        Meal lunch = mealWithIngredients("Other Lunch", MealType.LUNCH, List.of(), "Rice");
+        for (Meal m : List.of(current, withMilk, withMushroom, ok, lunch)) {
+            org.springframework.test.util.ReflectionTestUtils.setField(m, "id", java.util.UUID.randomUUID());
+        }
+        when(mealRepository.findAll()).thenReturn(List.of(current, withMilk, withMushroom, ok, lunch));
+
+        List<PlannedMeal> options = service.swapOptions(new com.hlulani.sanelle.service.MealPlanService.SwapOptionsRequest(
+                MealType.DINNER, current.getId(), "ANY", null, List.of("MILK"), List.of("mushroom")));
+
+        assertThat(options).extracting(PlannedMeal::name).containsExactly("Lentil Stew");
+    }
+
+    @Test
+    void unknownAllergenInARequestIsAnError() {
+        when(mealRepository.findAll()).thenReturn(List.of());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.generate(new GenerateMealPlanRequest(
+                        "DAYS_7", "FASTING_16_8", "ANY", null, List.of("NUTS"), List.of())))
+                .isInstanceOf(com.hlulani.sanelle.domain.allergen.UnknownAllergenException.class);
+    }
+
     private static PlannedMeal mealOfType(List<PlannedMeal> meals, MealType type) {
         return meals.stream().filter(m -> m.mealType() == type).findFirst().orElseThrow();
     }

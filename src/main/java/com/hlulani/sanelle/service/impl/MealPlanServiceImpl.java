@@ -1,5 +1,6 @@
 package com.hlulani.sanelle.service.impl;
 
+import com.hlulani.sanelle.domain.allergen.FoodRestrictions;
 import com.hlulani.sanelle.domain.entity.Meal;
 import com.hlulani.sanelle.domain.entity.MealType;
 import com.hlulani.sanelle.repository.MealRepository;
@@ -56,13 +57,11 @@ public class MealPlanServiceImpl implements MealPlanService {
         };
 
         Integer maxPrep = req.maxPrepMinutes() != null && req.maxPrepMinutes() > 0 ? req.maxPrepMinutes() : null;
+        FoodRestrictions restrictions = FoodRestrictions.parse(req.allergies(), req.dislikes());
 
         // Only meals that meet every preference. No fallback to meals that don't:
         // a slot stays empty rather than showing something the person ruled out.
-        List<Meal> eligible = mealRepository.findAll().stream()
-                .filter(m -> matchesProteinPreference(m, req.proteinPreference()))
-                .filter(m -> maxPrep == null || (m.getPrepTimeMinutes() != null && m.getPrepTimeMinutes() <= maxPrep))
-                .toList();
+        List<Meal> eligible = eligibleMeals(req.proteinPreference(), maxPrep, restrictions);
         Map<MealType, List<Meal>> byType = groupByType(eligible);
 
         Map<MealType, Deque<Meal>> queues = new EnumMap<>(MealType.class);
@@ -85,7 +84,7 @@ public class MealPlanServiceImpl implements MealPlanService {
                         picked.getImageUrl(),
                         picked.getTags().stream().sorted().toList(),
                         picked.getPrepTimeMinutes(),
-                        reasonsFor(picked, req.proteinPreference(), maxPrep)
+                        reasonsFor(picked, req.proteinPreference(), maxPrep, restrictions)
                 ));
             }
             daysPlan.add(new DayPlan(start.plusDays(i), plannedMeals));
@@ -110,8 +109,35 @@ public class MealPlanServiceImpl implements MealPlanService {
         return queue.poll();
     }
 
-    /** Only the person's own criteria. No health claims. */
+    @Override
+    public List<PlannedMeal> swapOptions(SwapOptionsRequest req) {
+        Integer maxPrep = req.maxPrepMinutes() != null && req.maxPrepMinutes() > 0 ? req.maxPrepMinutes() : null;
+        FoodRestrictions restrictions = FoodRestrictions.parse(req.allergies(), req.dislikes());
+        return eligibleMeals(req.proteinPreference(), maxPrep, restrictions).stream()
+                .filter(m -> req.mealType() == null || m.getMealType() == req.mealType())
+                .filter(m -> !m.getId().equals(req.currentMealId()))
+                .sorted(Comparator.comparing(Meal::getName))
+                .map(m -> new PlannedMeal(m.getMealType(), m.getId(), m.getName(), m.getImageUrl(),
+                        m.getTags().stream().sorted().toList(), m.getPrepTimeMinutes(),
+                        reasonsFor(m, req.proteinPreference(), maxPrep, restrictions)))
+                .toList();
+    }
+
+    /** The one place every rule is applied, for plans and swaps alike. */
+    List<Meal> eligibleMeals(String proteinPreference, Integer maxPrep, FoodRestrictions restrictions) {
+        return mealRepository.findAll().stream()
+                .filter(m -> matchesProteinPreference(m, proteinPreference))
+                .filter(m -> maxPrep == null || (m.getPrepTimeMinutes() != null && m.getPrepTimeMinutes() <= maxPrep))
+                .filter(restrictions::allows)
+                .toList();
+    }
+
     List<String> reasonsFor(Meal meal, String proteinPreference, Integer maxPrep) {
+        return reasonsFor(meal, proteinPreference, maxPrep, FoodRestrictions.none());
+    }
+
+    /** Only the person's own criteria. No health claims, and no promise of allergy safety. */
+    List<String> reasonsFor(Meal meal, String proteinPreference, Integer maxPrep, FoodRestrictions restrictions) {
         List<String> reasons = new ArrayList<>();
         switch (proteinPreference == null ? "ANY" : proteinPreference) {
             case "VEGAN" -> reasons.add("Vegan, as you chose");
@@ -123,6 +149,12 @@ public class MealPlanServiceImpl implements MealPlanService {
             reasons.add("Ready in " + meal.getPrepTimeMinutes() + " min (your limit is " + maxPrep + ")");
         } else if (meal.getPrepTimeMinutes() != null) {
             reasons.add("Ready in " + meal.getPrepTimeMinutes() + " min");
+        }
+        if (!restrictions.allergies().isEmpty()) {
+            reasons.add("Leaves out the allergens you listed");
+        }
+        if (!restrictions.dislikes().isEmpty()) {
+            reasons.add("Leaves out foods you don't eat");
         }
         return reasons;
     }

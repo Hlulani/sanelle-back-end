@@ -19,5 +19,12 @@ public class MealPlanController {
     ) {
         return mealPlanService.generate(req);
     }
+
+    @PostMapping("/swap-options")
+    public java.util.List<MealPlanService.PlannedMeal> swapOptions(
+            @RequestBody MealPlanService.SwapOptionsRequest req
+    ) {
+        return mealPlanService.swapOptions(req);
+    }
 }
 

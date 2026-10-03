@@ -69,6 +69,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
+    @ExceptionHandler(com.hlulani.sanelle.domain.allergen.UnknownAllergenException.class)
+    public ResponseEntity<ApiError> handleUnknownAllergen(RuntimeException ex, HttpServletRequest req) {
+        ApiError body = new ApiError(
+                OffsetDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                req.getRequestURI(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(InvalidUsernameException.class)
     public ResponseEntity<ApiError> handleInvalidUsername(InvalidUsernameException ex, HttpServletRequest req) {
         ApiError body = new ApiError(
