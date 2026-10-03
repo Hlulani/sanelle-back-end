@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16
+    container_name: sanelle-db
+    environment:
+      POSTGRES_DB: sanelle
+      POSTGRES_USER: sanelle
+      POSTGRES_PASSWORD: sanelle
+    ports:
+      - "5432:5432"
+    volumes:
+      - sanelle_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sanelle -d sanelle"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: sanelle-app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: sanelle-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  sanelle_pgdata:
