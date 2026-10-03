@@ -47,9 +47,8 @@ public class MealController {
     @GetMapping("/search")
     public List<MealResponse> search(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) MealType type,
-            @RequestParam(required = false) Integer minFiber
+            @RequestParam(required = false) MealType type
     ) {
-        return mealService.searchMeals(name, type, minFiber);
+        return mealService.searchMeals(name, type);
     }
 }

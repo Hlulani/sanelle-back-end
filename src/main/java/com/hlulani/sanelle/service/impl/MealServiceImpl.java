@@ -77,9 +77,9 @@ public class MealServiceImpl implements MealService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MealResponse> searchMeals(String name, MealType type, Integer minFiber) {
+    public List<MealResponse> searchMeals(String name, MealType type) {
         // Pass only the 3 parameters to the specification
-        return mealRepository.findAll(MealSpecifications.withFilters(name, type, minFiber))
+        return mealRepository.findAll(MealSpecifications.withFilters(name, type))
                 .stream()
                 .map(MealMapper::toResponse)
                 .toList();

@@ -9,7 +9,7 @@ import java.util.List;
 
 public class MealSpecifications {
 
-    public static Specification<Meal> withFilters(String name, MealType type, Integer minFiber) {
+    public static Specification<Meal> withFilters(String name, MealType type) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -19,10 +19,6 @@ public class MealSpecifications {
 
             if (type != null) {
                 predicates.add(cb.equal(root.get("mealType"), type));
-            }
-
-            if (minFiber != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("fiberScore"), minFiber));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

@@ -16,5 +16,5 @@ public interface MealService {
     List<MealResponse> findAll();
     MealResponse findById(UUID id);
 
-    List<MealResponse> searchMeals(String name, MealType type, Integer minFiber);
+    List<MealResponse> searchMeals(String name, MealType type);
 }

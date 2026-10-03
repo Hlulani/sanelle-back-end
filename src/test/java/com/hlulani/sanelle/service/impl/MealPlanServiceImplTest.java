@@ -8,12 +8,10 @@ import com.hlulani.sanelle.service.MealPlanService.GenerateMealPlanRequest;
 import com.hlulani.sanelle.service.MealPlanService.MealPlanResponse;
 import com.hlulani.sanelle.service.MealPlanService.PlannedMeal;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -23,7 +21,7 @@ class MealPlanServiceImplTest {
     private final MealPlanServiceImpl service = new MealPlanServiceImpl(mealRepository);
 
     private static Meal mealWithIngredients(String name, MealType type, List<String> tags, String... ingredientNames) {
-        Meal meal = new Meal(name, type, 4, 4, 4, tags);
+        Meal meal = new Meal(name, type, tags);
         for (String ingredientName : ingredientNames) {
             meal.getIngredients().add(new Ingredient(ingredientName, null));
         }
@@ -72,47 +70,71 @@ class MealPlanServiceImplTest {
         assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGAN);
     }
 
-    // --- generate() filter-then-fallback behavior ---
+    // --- generate(): preferences are never broken ---
 
-    @SuppressWarnings("unchecked")
     @Test
-    void generateFallsBackToUnfilteredPoolForASlotWithNoVeganMeals() {
+    void slotWithNoMatchingMealIsLeftEmptyAndReported() {
         Meal veganLunch = mealWithIngredients("Vegan Lentil Bowl", MealType.LUNCH,
                 List.of("lunch"), "Cooked lentils", "Carrot", "Onion");
-
-        // Neither breakfast option is vegan-classified: one is meaty, one has egg/cheese.
         Meal meatyBreakfast = mealWithIngredients("Bacon and Eggs", MealType.BREAKFAST,
                 List.of("breakfast"), "Bacon", "Eggs");
         Meal dairyBreakfast = mealWithIngredients("Cheese Omelette", MealType.BREAKFAST,
                 List.of("breakfast"), "Eggs", "Cheese");
-
         Meal meatyDinner = mealWithIngredients("Grilled Chicken", MealType.DINNER,
                 List.of("dinner"), "Chicken breast");
+        when(mealRepository.findAll()).thenReturn(List.of(veganLunch, meatyBreakfast, dairyBreakfast, meatyDinner));
 
-        List<Meal> allMeals = List.of(veganLunch, meatyBreakfast, dairyBreakfast, meatyDinner);
+        MealPlanResponse response = service.generate(
+                new GenerateMealPlanRequest("DAYS_7", "NO_FASTING_3_MEALS", "VEGAN", null));
 
-        when(mealRepository.findAll()).thenReturn(allMeals);
-        when(mealRepository.findAll(any(Specification.class))).thenReturn(allMeals);
+        for (var day : response.daysPlan()) {
+            assertThat(day.meals()).extracting(PlannedMeal::name).containsExactly("Vegan Lentil Bowl");
+        }
+        assertThat(response.unfilled()).containsExactly("BREAKFAST", "DINNER");
+    }
 
-        GenerateMealPlanRequest req = new GenerateMealPlanRequest(
-                "DAYS_7", "NO_FASTING_3_MEALS", 8, false, false, false, "VEGAN");
+    @Test
+    void maxPrepTimeExcludesSlowerAndUntimedMeals() {
+        Meal quick = mealWithIngredients("Quick Salad", MealType.LUNCH, List.of(), "Lettuce");
+        quick.setPrepTimeMinutes(10);
+        Meal slow = mealWithIngredients("Slow Stew", MealType.LUNCH, List.of(), "Beans");
+        slow.setPrepTimeMinutes(90);
+        Meal untimed = mealWithIngredients("Mystery Bowl", MealType.LUNCH, List.of(), "Rice");
+        when(mealRepository.findAll()).thenReturn(List.of(quick, slow, untimed));
 
-        MealPlanResponse response = service.generate(req);
-        var day = response.daysPlan().get(0);
+        MealPlanResponse response = service.generate(
+                new GenerateMealPlanRequest("DAYS_14", "FASTING_16_8", "ANY", 20));
 
-        PlannedMeal breakfast = mealOfType(day.meals(), MealType.BREAKFAST);
-        PlannedMeal lunch = mealOfType(day.meals(), MealType.LUNCH);
-        PlannedMeal dinner = mealOfType(day.meals(), MealType.DINNER);
+        assertThat(response.daysPlan()).allSatisfy(day ->
+                assertThat(day.meals()).extracting(PlannedMeal::name).containsOnly("Quick Salad"));
+    }
 
-        // Zero vegan-classified breakfasts exist -> falls back to the unfiltered breakfast pool
-        // instead of silently returning no breakfast at all.
-        assertThat(breakfast.name()).isIn("Bacon and Eggs", "Cheese Omelette");
+    @Test
+    void everyRecipeIsUsedOnceBeforeAnyRepeats() {
+        List<Meal> lunches = List.of(
+                mealWithIngredients("A", MealType.LUNCH, List.of(), "x"),
+                mealWithIngredients("B", MealType.LUNCH, List.of(), "x"),
+                mealWithIngredients("C", MealType.LUNCH, List.of(), "x"));
+        when(mealRepository.findAll()).thenReturn(lunches);
 
-        // A vegan lunch exists -> the protein filter is honored, not just the fallback.
-        assertThat(lunch.name()).isEqualTo("Vegan Lentil Bowl");
+        MealPlanResponse response = service.generate(
+                new GenerateMealPlanRequest("DAYS_7", "FASTING_16_8", "ANY", null));
 
-        // Zero vegan-classified dinners exist -> falls back too.
-        assertThat(dinner.name()).isEqualTo("Grilled Chicken");
+        List<String> firstThree = response.daysPlan().subList(0, 3).stream()
+                .map(d -> mealOfType(d.meals(), MealType.LUNCH).name()).toList();
+        assertThat(firstThree).containsExactlyInAnyOrder("A", "B", "C");
+    }
+
+    @Test
+    void reasonsOnlyStateThePersonsOwnCriteria() {
+        Meal meal = mealWithIngredients("Lentil Stew", MealType.DINNER, List.of(), "Lentils");
+        meal.setPrepTimeMinutes(15);
+
+        assertThat(service.reasonsFor(meal, "VEGETARIAN", 20))
+                .containsExactly("Vegetarian, as you chose", "Ready in 15 min (your limit is 20)");
+        assertThat(service.reasonsFor(meal, "ANY", null)).containsExactly("Ready in 15 min");
+        assertThat(String.join(" ", service.reasonsFor(meal, "VEGAN", 30)).toLowerCase())
+                .doesNotContain("inflamm", "fibroid", "hormone", "iron", "fibre", "fiber");
     }
 
     private static PlannedMeal mealOfType(List<PlannedMeal> meals, MealType type) {

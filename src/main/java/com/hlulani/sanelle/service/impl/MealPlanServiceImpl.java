@@ -3,9 +3,7 @@ package com.hlulani.sanelle.service.impl;
 import com.hlulani.sanelle.domain.entity.Meal;
 import com.hlulani.sanelle.domain.entity.MealType;
 import com.hlulani.sanelle.repository.MealRepository;
-import com.hlulani.sanelle.repository.spec.MealPlanSpecifications;
 import com.hlulani.sanelle.service.MealPlanService;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,77 +42,87 @@ public class MealPlanServiceImpl implements MealPlanService {
 
     @Override
     public MealPlanResponse generate(GenerateMealPlanRequest req) {
-        int days = switch (req.duration()) {
-            case "DAYS_7" -> 7;
+        int days = switch (req.duration() == null ? "" : req.duration()) {
             case "DAYS_14" -> 14;
             case "DAYS_30" -> 30;
             default -> 7;
         };
 
-        Integer minAnti = req.fibroidFocus() ? 4 : null;
-        Integer minIron = req.ironSupport() ? 4 : null;
-        Integer minFiber = req.fiberFocus() ? 4 : null;
-
-        // 1) Load ALL meals (fallback pool)
-        List<Meal> allMeals = mealRepository.findAll();
-
-        // 2) Load score-FILTERED meals (preferred pool, DB-level)
-        Specification<Meal> spec = MealPlanSpecifications.withMinimumScores(minAnti, minIron, minFiber);
-        List<Meal> scoreFilteredMeals = mealRepository.findAll(spec);
-
-        // 3) Narrow further by protein preference (keyword-derived, done in Java since it's not a DB column)
-        List<Meal> filteredMeals = scoreFilteredMeals.stream()
-                .filter(m -> matchesProteinPreference(m, req.proteinPreference()))
-                .toList();
-
-        // If filters are too strict for EVERYTHING, fallback to all
-        if (filteredMeals.isEmpty()) {
-            filteredMeals = allMeals;
-        }
-
-        // Build maps by type
-        Map<MealType, List<Meal>> allByType = groupByType(allMeals);
-        Map<MealType, List<Meal>> filteredByType = groupByType(filteredMeals);
-
-        List<MealType> typesPerDay = switch (req.fastingStyle()) {
-            case "NO_FASTING_3_MEALS" -> List.of(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER);
+        List<MealType> typesPerDay = switch (req.fastingStyle() == null ? "" : req.fastingStyle()) {
             case "FASTING_16_8", "FASTING_18_6" -> List.of(MealType.LUNCH, MealType.DINNER);
             default -> List.of(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER);
         };
 
+        Integer maxPrep = req.maxPrepMinutes() != null && req.maxPrepMinutes() > 0 ? req.maxPrepMinutes() : null;
+
+        // Only meals that meet every preference. No fallback to meals that don't:
+        // a slot stays empty rather than showing something the person ruled out.
+        List<Meal> eligible = mealRepository.findAll().stream()
+                .filter(m -> matchesProteinPreference(m, req.proteinPreference()))
+                .filter(m -> maxPrep == null || (m.getPrepTimeMinutes() != null && m.getPrepTimeMinutes() <= maxPrep))
+                .toList();
+        Map<MealType, List<Meal>> byType = groupByType(eligible);
+
+        Map<MealType, Deque<Meal>> queues = new EnumMap<>(MealType.class);
+        Set<String> unfilled = new LinkedHashSet<>();
         List<DayPlan> daysPlan = new ArrayList<>();
         LocalDate start = LocalDate.now();
 
         for (int i = 0; i < days; i++) {
-            LocalDate date = start.plusDays(i);
-
             List<PlannedMeal> plannedMeals = new ArrayList<>();
             for (MealType t : typesPerDay) {
-
-                // ✅ Prefer filtered pool, but fallback to all meals of that type
-                List<Meal> preferred = filteredByType.getOrDefault(t, List.of());
-                List<Meal> fallback = allByType.getOrDefault(t, List.of());
-
-                Meal picked = pickRandom(!preferred.isEmpty() ? preferred : fallback);
-
-                if (picked != null) {
-                    plannedMeals.add(new PlannedMeal(
-                            t,
-                            picked.getId(),
-                            picked.getName(),
-                            picked.getImageUrl(),
-                            picked.getTags().stream().sorted().toList(),
-                            picked.getAntiInflammatoryScore(),
-                            picked.getIronSupport(),
-                            picked.getFiberScore()
-                    ));
+                Meal picked = nextFor(t, byType, queues);
+                if (picked == null) {
+                    unfilled.add(t.name());
+                    continue;
                 }
+                plannedMeals.add(new PlannedMeal(
+                        t,
+                        picked.getId(),
+                        picked.getName(),
+                        picked.getImageUrl(),
+                        picked.getTags().stream().sorted().toList(),
+                        picked.getPrepTimeMinutes(),
+                        reasonsFor(picked, req.proteinPreference(), maxPrep)
+                ));
             }
-
-            daysPlan.add(new DayPlan(date, plannedMeals));
+            daysPlan.add(new DayPlan(start.plusDays(i), plannedMeals));
         }
 
-        return new MealPlanResponse(days, daysPlan);
+        return new MealPlanResponse(days, daysPlan, List.copyOf(unfilled));
+    }
+
+    /**
+     * Variety: each recipe of a type is used once, in a shuffled order, before any
+     * recipe repeats.
+     */
+    private Meal nextFor(MealType type, Map<MealType, List<Meal>> byType, Map<MealType, Deque<Meal>> queues) {
+        List<Meal> pool = byType.getOrDefault(type, List.of());
+        if (pool.isEmpty()) return null;
+        Deque<Meal> queue = queues.computeIfAbsent(type, k -> new ArrayDeque<>());
+        if (queue.isEmpty()) {
+            List<Meal> shuffled = new ArrayList<>(pool);
+            Collections.shuffle(shuffled, random);
+            queue.addAll(shuffled);
+        }
+        return queue.poll();
+    }
+
+    /** Only the person's own criteria. No health claims. */
+    List<String> reasonsFor(Meal meal, String proteinPreference, Integer maxPrep) {
+        List<String> reasons = new ArrayList<>();
+        switch (proteinPreference == null ? "ANY" : proteinPreference) {
+            case "VEGAN" -> reasons.add("Vegan, as you chose");
+            case "VEGETARIAN" -> reasons.add("Vegetarian, as you chose");
+            case "MEATY" -> reasons.add("Includes meat or fish, as you chose");
+            default -> { }
+        }
+        if (maxPrep != null && meal.getPrepTimeMinutes() != null) {
+            reasons.add("Ready in " + meal.getPrepTimeMinutes() + " min (your limit is " + maxPrep + ")");
+        } else if (meal.getPrepTimeMinutes() != null) {
+            reasons.add("Ready in " + meal.getPrepTimeMinutes() + " min");
+        }
+        return reasons;
     }
 
     private Map<MealType, List<Meal>> groupByType(List<Meal> meals) {
@@ -122,12 +130,6 @@ public class MealPlanServiceImpl implements MealPlanService {
         for (MealType t : MealType.values()) byType.put(t, new ArrayList<>());
         for (Meal m : meals) byType.get(m.getMealType()).add(m);
         return byType;
-    }
-
-
-    private Meal pickRandom(List<Meal> list) {
-        if (list == null || list.isEmpty()) return null;
-        return list.get(random.nextInt(list.size()));
     }
 
     boolean matchesProteinPreference(Meal meal, String proteinPreference) {

@@ -17,9 +17,6 @@ public final class MealMapper {
         Meal meal = new Meal(
                 req.name(),
                 req.mealType(),
-                req.antiInflammatoryScore(),
-                req.ironSupport(),
-                req.fiberScore(),
                 req.tags()
         );
 
@@ -54,9 +51,6 @@ public final class MealMapper {
                 meal.getId(),
                 meal.getName(),
                 meal.getMealType(),
-                meal.getAntiInflammatoryScore(),
-                meal.getIronSupport(),
-                meal.getFiberScore(),
                 meal.getTags(),
                 meal.getIngredients().stream()
                         .map(i -> new IngredientResponse(i.getName(), i.getAmount()))

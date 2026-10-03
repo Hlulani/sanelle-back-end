@@ -29,15 +29,6 @@ public class Meal {
     @Column(nullable = false)
     private MealType mealType;
 
-    @Column(nullable = false)
-    private int antiInflammatoryScore;
-
-    @Column(nullable = false)
-    private int ironSupport;
-
-    @Column(nullable = false)
-    private int fiberScore;
-
     @Column(name = "image_url")
     private String imageUrl;
 
@@ -162,16 +153,10 @@ public class Meal {
     public Meal(
             String name,
             MealType mealType,
-            int antiInflammatoryScore,
-            int ironSupport,
-            int fiberScore,
             List<String> tags
     ) {
         this.name = name;
         this.mealType = mealType;
-        this.antiInflammatoryScore = antiInflammatoryScore;
-        this.ironSupport = ironSupport;
-        this.fiberScore = fiberScore;
         if (tags != null) {
             this.tags.addAll(tags);
         }
@@ -200,18 +185,6 @@ public class Meal {
 
     public MealType getMealType() {
         return mealType;
-    }
-
-    public int getAntiInflammatoryScore() {
-        return antiInflammatoryScore;
-    }
-
-    public int getIronSupport() {
-        return ironSupport;
-    }
-
-    public int getFiberScore() {
-        return fiberScore;
     }
 
     public Set<String> getTags() {

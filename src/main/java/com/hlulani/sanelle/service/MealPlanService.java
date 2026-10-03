@@ -4,34 +4,47 @@ import com.hlulani.sanelle.domain.entity.MealType;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 public interface MealPlanService {
 
+    /**
+     * What a plan is built from. Every field is something the person chose, so
+     * "why this meal" can state it truthfully.
+     *
+     * @param duration          DAYS_7, DAYS_14 or DAYS_30
+     * @param fastingStyle      meal schedule: NO_FASTING_3_MEALS (breakfast, lunch, dinner)
+     *                          or FASTING_16_8 / FASTING_18_6 (lunch and dinner). A preference,
+     *                          not a health recommendation.
+     * @param proteinPreference ANY, MEATY, VEGETARIAN or VEGAN
+     * @param maxPrepMinutes    optional upper limit on preparation time
+     */
     record GenerateMealPlanRequest(
             String duration,
             String fastingStyle,
-            int firstMealHour,
-            boolean fibroidFocus,
-            boolean ironSupport,
-            boolean fiberFocus,
-            String proteinPreference
+            String proteinPreference,
+            Integer maxPrepMinutes
     ) {}
 
     record PlannedMeal(
             MealType mealType,
-            java.util.UUID mealId,
+            UUID mealId,
             String name,
             String imageUrl,
             List<String> tags,
-            int antiInflammatoryScore,
-            int ironSupport,
-            int fiberScore
+            Integer prepTimeMinutes,
+            /** The person's own criteria this meal meets, e.g. "Vegetarian, as you chose". */
+            List<String> reasons
     ) {}
 
     record DayPlan(LocalDate date, List<PlannedMeal> meals) {}
 
-    record MealPlanResponse(int days, List<DayPlan> daysPlan) {}
+    /**
+     * @param unfilled meal slots that no recipe could fill without breaking a preference,
+     *                 e.g. "BREAKFAST". Slots are left empty rather than filled with a
+     *                 recipe the person said they don't want.
+     */
+    record MealPlanResponse(int days, List<DayPlan> daysPlan, List<String> unfilled) {}
 
     MealPlanResponse generate(GenerateMealPlanRequest req);
 }
