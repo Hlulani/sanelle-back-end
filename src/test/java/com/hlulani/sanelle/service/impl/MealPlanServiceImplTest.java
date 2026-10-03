@@ -31,13 +31,42 @@ class MealPlanServiceImplTest {
     // --- classifier tests, mirroring real seeded meals from V4__seed_50_meals.sql ---
 
     @Test
-    void chickenMealIsClassifiedAsMeaty() {
+    void chickenMealIsClassifiedAsMeat() {
         // mirrors "Garlic Lemon Chicken with Broccoli"
         Meal meal = mealWithIngredients("Garlic Lemon Chicken with Broccoli", MealType.DINNER,
                 List.of("dinner", "high-protein", "easy"),
                 "Chicken breast", "Broccoli", "Garlic", "Lemon juice", "Olive oil");
 
-        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.MEATY);
+        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.MEAT);
+    }
+
+    @Test
+    void fishMealIsClassifiedAsFishNotMeat() {
+        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet", "Lemon");
+        Meal surfAndTurf = mealWithIngredients("Chicken and Shrimp", MealType.DINNER, List.of(), "Chicken thighs", "Shrimp");
+
+        assertThat(service.classifyProtein(salmon)).isEqualTo(MealPlanServiceImpl.ProteinClass.FISH);
+        assertThat(service.classifyProtein(surfAndTurf)).isEqualTo(MealPlanServiceImpl.ProteinClass.MEAT);
+    }
+
+    @Test
+    void pescatarianAllowsFishAndMeatFreeMealsButNoMeat() {
+        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet");
+        Meal lentils = mealWithIngredients("Lentil Stew", MealType.DINNER, List.of(), "Cooked lentils");
+        Meal omelette = mealWithIngredients("Cheese Omelette", MealType.DINNER, List.of(), "Eggs", "Cheese");
+        Meal chicken = mealWithIngredients("Grilled Chicken", MealType.DINNER, List.of(), "Chicken breast");
+
+        assertThat(service.matchesProteinPreference(salmon, "PESCATARIAN")).isTrue();
+        assertThat(service.matchesProteinPreference(lentils, "PESCATARIAN")).isTrue();
+        assertThat(service.matchesProteinPreference(omelette, "PESCATARIAN")).isTrue();
+        assertThat(service.matchesProteinPreference(chicken, "PESCATARIAN")).isFalse();
+    }
+
+    @Test
+    void vegetarianExcludesFish() {
+        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet");
+
+        assertThat(service.matchesProteinPreference(salmon, "VEGETARIAN")).isFalse();
     }
 
     @Test

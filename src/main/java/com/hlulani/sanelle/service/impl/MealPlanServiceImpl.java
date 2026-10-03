@@ -15,12 +15,17 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class MealPlanServiceImpl implements MealPlanService {
 
-    enum ProteinClass { MEATY, VEGETARIAN, VEGAN }
+    /** Meat wins over fish: a meal with both isn't pescatarian. */
+    enum ProteinClass { MEAT, FISH, VEGETARIAN, VEGAN }
 
     private static final Set<String> MEAT_KEYWORDS = Set.of(
             "chicken", "beef", "turkey", "pork", "ham", "bacon", "sausage", "lamb", "duck",
-            "salmon", "tuna", "shrimp", "cod", "halibut", "mackerel", "sardine", "trout",
-            "anchovy", "crab", "lobster"
+            "veal", "venison"
+    );
+
+    private static final Set<String> FISH_KEYWORDS = Set.of(
+            "salmon", "tuna", "shrimp", "prawn", "cod", "halibut", "mackerel", "sardine", "trout",
+            "anchovy", "crab", "lobster", "seafood"
     );
 
     private static final Set<String> DAIRY_EGG_HONEY_KEYWORDS = Set.of(
@@ -142,6 +147,7 @@ public class MealPlanServiceImpl implements MealPlanService {
         switch (proteinPreference == null ? "ANY" : proteinPreference) {
             case "VEGAN" -> reasons.add("Vegan, as you chose");
             case "VEGETARIAN" -> reasons.add("Vegetarian, as you chose");
+            case "PESCATARIAN" -> reasons.add("No meat, as you chose");
             case "MEATY" -> reasons.add("Includes meat or fish, as you chose");
             default -> { }
         }
@@ -172,18 +178,21 @@ public class MealPlanServiceImpl implements MealPlanService {
         }
         ProteinClass proteinClass = classifyProtein(meal);
         return switch (proteinPreference) {
-            case "MEATY" -> proteinClass == ProteinClass.MEATY;
-            case "VEGETARIAN" -> proteinClass != ProteinClass.MEATY;
+            // Older plans may still send MEATY; the app no longer offers it.
+            case "MEATY" -> proteinClass == ProteinClass.MEAT || proteinClass == ProteinClass.FISH;
+            case "PESCATARIAN" -> proteinClass != ProteinClass.MEAT;
+            case "VEGETARIAN" -> proteinClass == ProteinClass.VEGETARIAN || proteinClass == ProteinClass.VEGAN;
             case "VEGAN" -> proteinClass == ProteinClass.VEGAN;
             default -> true; // "ANY" or unrecognized value: no filtering
         };
     }
 
     ProteinClass classifyProtein(Meal meal) {
-        boolean meaty = meal.getIngredients().stream()
-                .anyMatch(i -> containsAnyKeyword(i.getName(), MEAT_KEYWORDS));
-        if (meaty) {
-            return ProteinClass.MEATY;
+        if (meal.getIngredients().stream().anyMatch(i -> containsAnyKeyword(i.getName(), MEAT_KEYWORDS))) {
+            return ProteinClass.MEAT;
+        }
+        if (meal.getIngredients().stream().anyMatch(i -> containsAnyKeyword(i.getName(), FISH_KEYWORDS))) {
+            return ProteinClass.FISH;
         }
 
         boolean taggedVegan = meal.getTags().stream().anyMatch("vegan"::equalsIgnoreCase);
