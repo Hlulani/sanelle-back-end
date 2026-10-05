@@ -2,7 +2,6 @@ package com.hlulani.sanelle.domain.allergen;
 
 import com.hlulani.sanelle.domain.entity.Meal;
 import com.hlulani.sanelle.domain.entity.MealType;
-import com.hlulani.sanelle.domain.valueobject.Ingredient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -10,6 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import java.util.List;
 import java.util.Set;
 
+import static com.hlulani.sanelle.support.MealFixtures.mealWithIngredients;
 import static com.hlulani.sanelle.domain.allergen.Allergen.Presence.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -84,9 +84,7 @@ class AllergenTest {
     // --- FoodRestrictions ---
 
     private static Meal meal(String... ingredients) {
-        Meal m = new Meal("Test", MealType.LUNCH, List.of());
-        for (String i : ingredients) m.getIngredients().add(new Ingredient(i, null));
-        return m;
+        return mealWithIngredients("Test", MealType.LUNCH, List.of(), ingredients);
     }
 
     @Test

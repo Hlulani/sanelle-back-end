@@ -12,11 +12,9 @@ public interface MealPlanService {
      * What a plan is built from. Every field is something the person chose, so
      * "why this meal" can state it truthfully.
      *
-     * @param duration          DAYS_7, DAYS_14 or DAYS_30
-     * @param fastingStyle      meal schedule: NO_FASTING_3_MEALS (breakfast, lunch, dinner)
-     *                          or FASTING_16_8 / FASTING_18_6 (lunch and dinner). A preference,
-     *                          not a health recommendation.
-     * @param proteinPreference ANY, MEATY, VEGETARIAN or VEGAN
+     * @param duration          a {@link com.hlulani.sanelle.domain.mealplan.PlanDuration} name
+     * @param fastingStyle      a {@link com.hlulani.sanelle.domain.mealplan.FastingStyle} name
+     * @param proteinPreference a {@link com.hlulani.sanelle.domain.mealplan.ProteinPreference} name
      * @param maxPrepMinutes    optional upper limit on preparation time
      * @param allergies         allergen codes (see Allergen); meals that contain or may
      *                          contain any of them are left out

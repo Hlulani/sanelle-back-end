@@ -44,10 +44,6 @@ public record FoodRestrictions(Set<Allergen> allergies, List<String> dislikes) {
         return new FoodRestrictions(parsed, dislikes);
     }
 
-    public boolean isEmpty() {
-        return allergies.isEmpty() && dislikes.isEmpty();
-    }
-
     public boolean allows(Meal meal) {
         Collection<Ingredient> ingredients = meal.getIngredients();
         if (!allergies.isEmpty() && (ingredients == null || ingredients.isEmpty())) {

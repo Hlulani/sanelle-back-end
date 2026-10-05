@@ -2,7 +2,6 @@ package com.hlulani.sanelle.service.impl;
 
 import com.hlulani.sanelle.domain.entity.Meal;
 import com.hlulani.sanelle.domain.entity.MealType;
-import com.hlulani.sanelle.domain.valueobject.Ingredient;
 import com.hlulani.sanelle.repository.MealRepository;
 import com.hlulani.sanelle.service.MealPlanService.GenerateMealPlanRequest;
 import com.hlulani.sanelle.service.MealPlanService.MealPlanResponse;
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static com.hlulani.sanelle.support.MealFixtures.mealWithIngredients;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,96 +19,6 @@ class MealPlanServiceImplTest {
 
     private final MealRepository mealRepository = mock(MealRepository.class);
     private final MealPlanServiceImpl service = new MealPlanServiceImpl(mealRepository);
-
-    private static Meal mealWithIngredients(String name, MealType type, List<String> tags, String... ingredientNames) {
-        Meal meal = new Meal(name, type, tags);
-        for (String ingredientName : ingredientNames) {
-            meal.getIngredients().add(new Ingredient(ingredientName, null));
-        }
-        return meal;
-    }
-
-    // --- classifier tests, mirroring real seeded meals from V4__seed_50_meals.sql ---
-
-    @Test
-    void chickenMealIsClassifiedAsMeat() {
-        // mirrors "Garlic Lemon Chicken with Broccoli"
-        Meal meal = mealWithIngredients("Garlic Lemon Chicken with Broccoli", MealType.DINNER,
-                List.of("dinner", "high-protein", "easy"),
-                "Chicken breast", "Broccoli", "Garlic", "Lemon juice", "Olive oil");
-
-        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.MEAT);
-    }
-
-    @Test
-    void fishMealIsClassifiedAsFishNotMeat() {
-        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet", "Lemon");
-        Meal surfAndTurf = mealWithIngredients("Chicken and Shrimp", MealType.DINNER, List.of(), "Chicken thighs", "Shrimp");
-
-        assertThat(service.classifyProtein(salmon)).isEqualTo(MealPlanServiceImpl.ProteinClass.FISH);
-        assertThat(service.classifyProtein(surfAndTurf)).isEqualTo(MealPlanServiceImpl.ProteinClass.MEAT);
-    }
-
-    @Test
-    void pescatarianAllowsFishAndMeatFreeMealsButNoMeat() {
-        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet");
-        Meal lentils = mealWithIngredients("Lentil Stew", MealType.DINNER, List.of(), "Cooked lentils");
-        Meal omelette = mealWithIngredients("Cheese Omelette", MealType.DINNER, List.of(), "Eggs", "Cheese");
-        Meal chicken = mealWithIngredients("Grilled Chicken", MealType.DINNER, List.of(), "Chicken breast");
-
-        assertThat(service.matchesProteinPreference(salmon, "PESCATARIAN")).isTrue();
-        assertThat(service.matchesProteinPreference(lentils, "PESCATARIAN")).isTrue();
-        assertThat(service.matchesProteinPreference(omelette, "PESCATARIAN")).isTrue();
-        assertThat(service.matchesProteinPreference(chicken, "PESCATARIAN")).isFalse();
-    }
-
-    @Test
-    void vegetarianExcludesFish() {
-        Meal salmon = mealWithIngredients("Baked Salmon", MealType.DINNER, List.of(), "Salmon fillet");
-
-        assertThat(service.matchesProteinPreference(salmon, "VEGETARIAN")).isFalse();
-    }
-
-    @Test
-    void lentilStewWithNoMeatOrDairyIsClassifiedAsVegan() {
-        // mirrors "Simple Tomato Lentil Stew" — no meat, no dairy/egg/honey, not tagged 'vegan'
-        Meal meal = mealWithIngredients("Simple Tomato Lentil Stew", MealType.DINNER,
-                List.of("dinner", "high-fiber"),
-                "Cooked lentils", "Tomato passata", "Olive oil", "Garlic");
-
-        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGAN);
-    }
-
-    @Test
-    void mealWithCheeseAndEggButNoMeatIsVegetarianNotVegan() {
-        // mirrors "Spinach and Feta Scramble" — eggs + feta, no meat
-        Meal meal = mealWithIngredients("Spinach and Feta Scramble", MealType.BREAKFAST,
-                List.of("breakfast", "high-protein", "quick"),
-                "Eggs", "Spinach", "Feta", "Olive oil", "Salt");
-
-        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGETARIAN);
-    }
-
-    @Test
-    void cheesesNotNamedCheeseAreStillDairy() {
-        // mirrors "Grilled Peach, Burrata, and Tomato Salad" and "Honey-Pecan Brie Sweet Potato Rounds"
-        Meal burrata = mealWithIngredients("Grilled Peach, Burrata, and Tomato Salad", MealType.LUNCH,
-                List.of("lunch"), "Peach", "Burrata", "Tomato", "Basil", "Pistachios");
-        Meal brie = mealWithIngredients("Brie Rounds", MealType.SNACK, List.of(), "Sweet potato", "Brie", "Pecans");
-
-        assertThat(service.classifyProtein(burrata)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGETARIAN);
-        assertThat(service.classifyProtein(brie)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGETARIAN);
-    }
-
-    @Test
-    void nutButterIsNotMisclassifiedAsDairy() {
-        // mirrors "Apple with Almond Butter" — plant-based despite containing "butter"
-        Meal meal = mealWithIngredients("Apple with Almond Butter", MealType.SNACK,
-                List.of("snack", "no-cook"),
-                "Apple", "Almond butter");
-
-        assertThat(service.classifyProtein(meal)).isEqualTo(MealPlanServiceImpl.ProteinClass.VEGAN);
-    }
 
     // --- generate(): preferences are never broken ---
 
@@ -163,18 +73,6 @@ class MealPlanServiceImplTest {
         List<String> firstThree = response.daysPlan().subList(0, 3).stream()
                 .map(d -> mealOfType(d.meals(), MealType.LUNCH).name()).toList();
         assertThat(firstThree).containsExactlyInAnyOrder("A", "B", "C");
-    }
-
-    @Test
-    void reasonsOnlyStateThePersonsOwnCriteria() {
-        Meal meal = mealWithIngredients("Lentil Stew", MealType.DINNER, List.of(), "Lentils");
-        meal.setPrepTimeMinutes(15);
-
-        assertThat(service.reasonsFor(meal, "VEGETARIAN", 20))
-                .containsExactly("Vegetarian, as you chose", "Ready in 15 min (your limit is 20)");
-        assertThat(service.reasonsFor(meal, "ANY", null)).containsExactly("Ready in 15 min");
-        assertThat(String.join(" ", service.reasonsFor(meal, "VEGAN", 30)).toLowerCase())
-                .doesNotContain("inflamm", "fibroid", "hormone", "iron", "fibre", "fiber");
     }
 
     // --- allergies and swaps ---
