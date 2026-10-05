@@ -1,7 +1,9 @@
 package com.hlulani.sanelle.domain.allergen;
 
-public class UnknownAllergenException extends RuntimeException {
+import com.hlulani.sanelle.exception.ApiException;
+
+public class UnknownAllergenException extends ApiException {
     public UnknownAllergenException(String code) {
-        super("Unknown allergen: " + code);
+        super(Kind.BAD_REQUEST, "Unknown allergen: " + code);
     }
 }

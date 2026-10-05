@@ -1,7 +1,6 @@
 package com.hlulani.sanelle.mapper;
 
 import com.hlulani.sanelle.api.dto.request.CreateMealRequest;
-import com.hlulani.sanelle.api.dto.request.IngredientRequest;
 import com.hlulani.sanelle.api.dto.response.IngredientResponse;
 import com.hlulani.sanelle.api.dto.response.MealResponse;
 import com.hlulani.sanelle.domain.entity.Meal;

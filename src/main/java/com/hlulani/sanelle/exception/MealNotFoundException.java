@@ -2,8 +2,8 @@ package com.hlulani.sanelle.exception;
 
 import java.util.UUID;
 
-public class MealNotFoundException extends RuntimeException {
+public class MealNotFoundException extends ApiException {
     public MealNotFoundException(UUID id) {
-        super("Meal not found: " + id);
+        super(Kind.NOT_FOUND, "Meal not found: " + id);
     }
 }

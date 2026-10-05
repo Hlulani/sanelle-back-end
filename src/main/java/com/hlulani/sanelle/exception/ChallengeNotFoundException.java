@@ -1,7 +1,7 @@
 package com.hlulani.sanelle.exception;
 
-public class ChallengeNotFoundException extends RuntimeException {
+public class ChallengeNotFoundException extends ApiException {
     public ChallengeNotFoundException(String identifier) {
-        super("Challenge not found: " + identifier);
+        super(Kind.NOT_FOUND, "Challenge not found: " + identifier);
     }
 }

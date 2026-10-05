@@ -1,7 +1,7 @@
 package com.hlulani.sanelle.exception;
 
-public class UsernameAlreadyTakenException extends RuntimeException {
+public class UsernameAlreadyTakenException extends ApiException {
     public UsernameAlreadyTakenException(String username) {
-        super("Username already taken: " + username);
+        super(Kind.CONFLICT, "Username already taken: " + username);
     }
 }

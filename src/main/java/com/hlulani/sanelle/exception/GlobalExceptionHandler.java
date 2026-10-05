@@ -1,98 +1,22 @@
 package com.hlulani.sanelle.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
-
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MealNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotFound(MealNotFoundException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                HttpStatus.NOT_FOUND.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-    }
-
-    @ExceptionHandler(ChallengeNotFoundException.class)
-    public ResponseEntity<ApiError> handleChallengeNotFound(ChallengeNotFoundException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                HttpStatus.NOT_FOUND.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-    }
-
-    @ExceptionHandler(EmailAlreadyRegisteredException.class)
-    public ResponseEntity<ApiError> handleEmailTaken(EmailAlreadyRegisteredException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                HttpStatus.CONFLICT.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
-    }
-
-    @ExceptionHandler(UsernameAlreadyTakenException.class)
-    public ResponseEntity<ApiError> handleUsernameTaken(UsernameAlreadyTakenException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                HttpStatus.CONFLICT.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
-    }
-
-    @ExceptionHandler(com.hlulani.sanelle.domain.allergen.UnknownAllergenException.class)
-    public ResponseEntity<ApiError> handleUnknownAllergen(RuntimeException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
-    }
-
-    @ExceptionHandler(InvalidUsernameException.class)
-    public ResponseEntity<ApiError> handleInvalidUsername(InvalidUsernameException ex, HttpServletRequest req) {
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                ex.getMessage(),
-                req.getRequestURI(),
-                null
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest req) {
+        return respond(statusOf(ex.kind()), ex.getMessage(), req, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -101,15 +25,21 @@ public class GlobalExceptionHandler {
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(fe.getField(), fe.getDefaultMessage());
         }
+        return respond(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+    }
 
-        ApiError body = new ApiError(
-                OffsetDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Validation failed",
-                req.getRequestURI(),
-                fieldErrors
-        );
-        return ResponseEntity.badRequest().body(body);
+    private static HttpStatus statusOf(ApiException.Kind kind) {
+        return switch (kind) {
+            case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+        };
+    }
+
+    private static ResponseEntity<ApiError> respond(HttpStatus status, String message, HttpServletRequest req,
+                                                    Map<String, String> fieldErrors) {
+        return ResponseEntity.status(status).body(ApiError.of(status, message, req.getRequestURI(), fieldErrors));
     }
 }

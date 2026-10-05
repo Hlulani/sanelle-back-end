@@ -1,5 +1,6 @@
 package com.hlulani.sanelle.config;
 
+import com.hlulani.sanelle.service.ImageStorage;
 import com.hlulani.sanelle.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +45,7 @@ public class SecurityConfig {
                         // Explicitly permit OPTIONS (Preflight) requests
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers(ImageStorage.URL_PATTERN).permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )

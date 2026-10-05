@@ -38,13 +38,6 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public User(UUID id, String email, String username, String passwordHash) {
-        this.id = id;
-        this.email = email;
-        this.username = username;
-        this.passwordHash = passwordHash;
-    }
-
 
     public UUID getId() {
         return id;

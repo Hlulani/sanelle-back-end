@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface MealService {
-    MealResponse create(CreateMealRequest request);
-
     MealResponse createWithImage(CreateMealRequest request, MultipartFile image);
 
     List<MealResponse> findAll();
