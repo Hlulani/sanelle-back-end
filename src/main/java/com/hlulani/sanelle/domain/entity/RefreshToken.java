@@ -67,4 +67,9 @@ public class RefreshToken {
     public void revoke() {
         this.revoked = true;
     }
+
+    /** Whether this token can still be exchanged for a new pair. */
+    public boolean isUsableAt(Instant now) {
+        return !revoked && expiresAt.isAfter(now);
+    }
 }

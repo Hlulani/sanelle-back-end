@@ -1,6 +1,7 @@
 package com.hlulani.sanelle.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -9,55 +10,49 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 public class JwtService {
 
+    private static final String USER_ID = "uid";
+    private static final String USERNAME = "username";
+    private static final String TYPE = "typ";
+    private static final String REFRESH = "refresh";
+
     private final JwtProperties props;
     private final SecretKey key;
 
-    public boolean isRefreshToken(String token) {
-        Claims c = parse(token);
-        return "refresh".equals(c.get("typ", String.class));
-    }
-
-
     public JwtService(JwtProperties props) {
-        this.props = props;
-
         if (props.secret() == null || props.secret().length() < 32) {
             throw new IllegalArgumentException("app.jwt.secret must be at least 32 characters");
         }
-
+        this.props = props;
         this.key = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(UUID userId, String email, String username) {
         Instant now = Instant.now();
-        Instant exp = now.plus(props.accessMinutes(), ChronoUnit.MINUTES);
-
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(email)
-                .claim("uid", userId.toString())
-                .claim("username", username)
+                .claim(USER_ID, userId.toString())
+                .claim(USERNAME, username)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(exp))
+                .expiration(Date.from(now.plus(props.accessMinutes(), ChronoUnit.MINUTES)))
                 .signWith(key)
                 .compact();
     }
 
     public String generateRefreshToken(UUID userId, String email) {
         Instant now = Instant.now();
-        Instant exp = now.plus(props.refreshDays(), ChronoUnit.DAYS);
-
         return Jwts.builder()
+                .id(UUID.randomUUID().toString()) // unique even when issued twice in the same second
                 .subject(email)
-                .claim("uid", userId.toString())
-                .claim("typ", "refresh")
-                .id(UUID.randomUUID().toString()) // 👈 add this
+                .claim(USER_ID, userId.toString())
+                .claim(TYPE, REFRESH)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(exp))
+                .expiration(Date.from(now.plus(props.refreshDays(), ChronoUnit.DAYS)))
                 .signWith(key)
                 .compact();
     }
@@ -70,11 +65,29 @@ public class JwtService {
                 .getPayload();
     }
 
+    /** The claims of a signed, unexpired refresh token; empty for anything else. */
+    public Optional<Claims> parseRefreshToken(String token) {
+        try {
+            Claims claims = parse(token);
+            return REFRESH.equals(claims.get(TYPE, String.class)) ? Optional.of(claims) : Optional.empty();
+        } catch (JwtException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
     public UUID getUserId(String token) {
-        return UUID.fromString(parse(token).get("uid", String.class));
+        return userIdOf(parse(token));
+    }
+
+    public static UUID userIdOf(Claims claims) {
+        return UUID.fromString(claims.get(USER_ID, String.class));
     }
 
     public String getEmail(String token) {
         return parse(token).getSubject();
+    }
+
+    public Instant expiresAt(String token) {
+        return parse(token).getExpiration().toInstant();
     }
 }

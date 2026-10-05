@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/** The one way into challenge participation, for built-in and custom challenges alike. */
 @Service
 @Transactional
 public class ChallengeParticipationService {
@@ -30,6 +31,21 @@ public class ChallengeParticipationService {
 
     public void leave(UUID userId, String challengeId) {
         repository.deleteByUserIdAndChallengeId(userId, challengeId);
+    }
+
+    /** Everyone leaves, for a challenge that no longer exists. */
+    public void removeAll(String challengeId) {
+        repository.deleteByChallengeId(challengeId);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isParticipant(UUID userId, String challengeId) {
+        return repository.findByUserIdAndChallengeId(userId, challengeId).isPresent();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChallengeParticipant> participants(String challengeId) {
+        return repository.findByChallengeId(challengeId);
     }
 
     @Transactional(readOnly = true)

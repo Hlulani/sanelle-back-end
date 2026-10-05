@@ -13,6 +13,8 @@ public interface CustomChallengeRepository extends JpaRepository<CustomChallenge
     Optional<CustomChallenge> findByInviteCode(String inviteCode);
     boolean existsByInviteCode(String inviteCode);
 
+    List<CustomChallenge> findByCreatedByUserId(UUID userId);
+
     // Challenges the user created OR has joined (via challenge_participants,
     // matching on challenge_id = custom_challenges.id::text).
     // Native SQL: Spring Data's HQL grammar doesn't support the POSIX regex operator (~)

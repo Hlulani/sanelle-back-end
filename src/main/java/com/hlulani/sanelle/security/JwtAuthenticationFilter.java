@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -14,6 +16,8 @@ import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
 
@@ -59,13 +63,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // 4. Set the authentication in the context
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                // Logging for the Senior Dev to confirm success in the console
-                System.out.println("DEBUG: JWT Auth successful for user: " + email);
             }
         } catch (Exception ex) {
-            // 5. If extraction fails (expired, wrong secret, etc.), we log the reason
-            System.err.println("DEBUG: JWT Auth failed. Reason: " + ex.getMessage());
+            // Expired, tampered or signed with another secret: continue unauthenticated.
+            log.debug("JWT rejected: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
 

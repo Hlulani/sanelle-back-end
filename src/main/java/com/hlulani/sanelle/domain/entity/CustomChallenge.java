@@ -86,4 +86,13 @@ public class CustomChallenge {
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
+
+    /** Custom challenges share the participants table with built-in ones, keyed by this id. */
+    public String participationKey() {
+        return id.toString();
+    }
+
+    public boolean isCreatedBy(UUID userId) {
+        return createdByUserId.equals(userId);
+    }
 }

@@ -1,7 +1,7 @@
 package com.hlulani.sanelle.security;
 
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority; // 1. ADD THIS IMPORT
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -24,7 +24,7 @@ public class AuthenticatedUser implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 2. UPDATE THIS: Spring needs at least one authority to pass .authenticated()
+        // .authenticated() needs at least one authority.
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
