@@ -102,6 +102,14 @@ The frontend lives in the [Sanelle-front-end](https://github.com/Hlulani/Sanelle
 
 CORS allows `http://localhost:4200` (Angular), `http://localhost:8100` (Ionic serve), and the Capacitor WebView origins by default. If you run the frontend somewhere else, set `CORS_ALLOWED_ORIGINS`.
 
+### Running the tests
+
+```bash
+./mvnw test
+```
+
+Unit tests need nothing else. Integration tests (`@IntegrationTest`) start a throwaway PostgreSQL 16 in Docker with Testcontainers, so Docker must be running; they never touch your local database, and the container is discarded afterwards.
+
 ## Configuration
 
 Settings are read from environment variables, with local-dev defaults in `application.properties`. See `.env.example`.
@@ -110,10 +118,9 @@ Settings are read from environment variables, with local-dev defaults in `applic
 |---|---|---|
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | `spring.datasource.*` | PostgreSQL connection details |
 | `JWT_SECRET` | `app.jwt.secret` | HMAC signing key for JWTs (32+ chars). **Must be set for any non-local deployment** |
-| `JWT_REFRESH_COOKIE_SECURE` | `app.jwt.refresh-cookie-secure` | Set to `true` when serving over HTTPS |
 | `CORS_ALLOWED_ORIGINS` | `app.cors.allowed-origins` | Comma-separated list of allowed client origins |
 
-Other properties: `app.jwt.access-minutes` and `app.jwt.refresh-days` (token lifetimes), `app.jwt.refresh-cookie-name` and `app.jwt.refresh-cookie-samesite`.
+Other properties: `app.jwt.access-minutes` and `app.jwt.refresh-days` (token lifetimes).
 
 `application-docker.properties` is used via `SPRING_PROFILES_ACTIVE=docker` in Docker Compose. Put personal overrides in `application-local.*`, which is gitignored.
 
@@ -132,6 +139,7 @@ All endpoints are prefixed with `/api/v1`.
 | POST | `/refresh` | Exchange a valid refresh token for a new token pair |
 | POST | `/logout` | Revoke a refresh token |
 | GET | `/me` | Get the current authenticated user |
+| DELETE | `/me` | Delete the account, its sessions, the challenges it created and its memberships |
 
 ### Meals (`/api/v1/meals`) — requires `Authorization: Bearer <access token>`
 

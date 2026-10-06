@@ -1,9 +1,9 @@
 package com.hlulani.sanelle;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.hlulani.sanelle.support.IntegrationTest;
 
-@SpringBootTest
+@IntegrationTest
 class SanelleApplicationTests {
 
 	@Test
