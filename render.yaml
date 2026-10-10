@@ -1,0 +1,41 @@
+# Render Blueprint: the API and its PostgreSQL database.
+# In Render: New → Blueprint → choose this repository. Fill in the two values marked
+# sync: false (the front end's address) when Render asks for them.
+databases:
+  - name: sanelle-db
+    plan: free
+    region: virginia
+    databaseName: sanelle
+    user: sanelle
+
+services:
+  - type: web
+    name: sanelle-api
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /v3/api-docs
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_HOST
+        fromDatabase: { name: sanelle-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: sanelle-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: sanelle-db, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: sanelle-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: sanelle-db, property: password }
+      - key: JWT_SECRET
+        generateValue: true
+      # The Netlify site, e.g. https://sanelle.netlify.app (no trailing slash)
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: MAIL_OUTBOX_ENABLED
+        value: false
+      - key: APP_EVIDENCE_EDITORS
+        value: hlullyr@gmail.com
