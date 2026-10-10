@@ -62,7 +62,8 @@ public final class MealMapper {
                 meal.getFreshOrFrozen(),
                 meal.getColorPalette(),
                 meal.getPrepTimeMinutes(),
-                meal.getDietaryTags()
+                meal.getDietaryTags(),
+                meal.getRecipeContent()
         );
     }
 }

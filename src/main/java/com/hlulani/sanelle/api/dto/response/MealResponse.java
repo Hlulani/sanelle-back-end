@@ -1,6 +1,7 @@
 package com.hlulani.sanelle.api.dto.response;
 
 import com.hlulani.sanelle.domain.entity.MealType;
+import com.hlulani.sanelle.domain.valueobject.RecipeContent;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +21,7 @@ public record MealResponse(
         String freshOrFrozen,
         String colorPalette,
         Integer prepTimeMinutes,
-        Set<String> dietaryTags
+        Set<String> dietaryTags,
+        RecipeContent recipeContent
 ) {}
 
