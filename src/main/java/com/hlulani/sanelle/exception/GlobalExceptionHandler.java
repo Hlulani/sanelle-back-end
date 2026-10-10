@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest req) {
-        return respond(statusOf(ex.kind()), ex.getMessage(), req, null);
+        return respond(statusOf(ex.kind()), ex.code(), ex.getMessage(), req, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(fe.getField(), fe.getDefaultMessage());
         }
-        return respond(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+        return respond(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_FAILED, "Validation failed", req, fieldErrors);
     }
 
     private static HttpStatus statusOf(ApiException.Kind kind) {
@@ -38,8 +38,8 @@ public class GlobalExceptionHandler {
         };
     }
 
-    private static ResponseEntity<ApiError> respond(HttpStatus status, String message, HttpServletRequest req,
-                                                    Map<String, String> fieldErrors) {
-        return ResponseEntity.status(status).body(ApiError.of(status, message, req.getRequestURI(), fieldErrors));
+    private static ResponseEntity<ApiError> respond(HttpStatus status, ErrorCode code, String message,
+                                                    HttpServletRequest req, Map<String, String> fieldErrors) {
+        return ResponseEntity.status(status).body(ApiError.of(status, code, message, req.getRequestURI(), fieldErrors));
     }
 }

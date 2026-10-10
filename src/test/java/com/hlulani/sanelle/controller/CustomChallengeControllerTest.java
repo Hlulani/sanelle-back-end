@@ -4,11 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.hlulani.sanelle.support.IntegrationTest;
+import com.hlulani.sanelle.support.TestAccounts;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,22 +25,11 @@ class CustomChallengeControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     private String registerAndLogin(String emailPrefix) throws Exception {
-        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
-        Map<String, String> registerBody = Map.of(
-                "email", emailPrefix + "-" + suffix + "@example.com",
-                "username", "u" + suffix,
-                "password", "TestPass123!"
-        );
-
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(registerBody)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        Map<?, ?> response = objectMapper.readValue(result.getResponse().getContentAsString(), Map.class);
-        return (String) response.get("accessToken");
+        return (String) new TestAccounts(mockMvc, objectMapper, jdbc).signedIn(emailPrefix).get("accessToken");
     }
 
     private Map<?, ?> createChallenge(String token, String name, String type, int targetCount, int durationDays) throws Exception {

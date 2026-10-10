@@ -1,5 +1,6 @@
 package com.hlulani.sanelle.config;
 
+import com.hlulani.sanelle.controller.DevOutboxController;
 import com.hlulani.sanelle.service.ImageStorage;
 import com.hlulani.sanelle.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,11 +27,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final List<String> allowedOrigins;
+    private final boolean outboxEnabled;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter,
-                          @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
+                          @Value("${app.cors.allowed-origins}") List<String> allowedOrigins,
+                          @Value("${app.mail.outbox.enabled:false}") boolean outboxEnabled) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.allowedOrigins = allowedOrigins;
+        this.outboxEnabled = outboxEnabled;
     }
 
     @Bean
@@ -41,14 +45,19 @@ public class SecurityConfig {
                 // 2. Disable CSRF for Stateless APIs
                 .csrf(csrf -> csrf.disable())
                 // 3. Configure Request Authorization
-                .authorizeHttpRequests(auth -> auth
-                        // Explicitly permit OPTIONS (Preflight) requests
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(ImageStorage.URL_PATTERN).permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    // Explicitly permit OPTIONS (Preflight) requests
+                    auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
+                    // Sign-up, sign-in, email links and password reset; /me checks its own principal
+                    auth.requestMatchers("/api/v1/auth/**").permitAll();
+                    auth.requestMatchers(ImageStorage.URL_PATTERN).permitAll();
+                    auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    // Development outbox: open only when switched on; otherwise it doesn't exist at all
+                    if (outboxEnabled) {
+                        auth.requestMatchers(DevOutboxController.PATH).permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )

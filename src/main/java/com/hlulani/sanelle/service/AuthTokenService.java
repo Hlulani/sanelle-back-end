@@ -6,6 +6,7 @@ import com.hlulani.sanelle.domain.entity.User;
 import com.hlulani.sanelle.exception.InvalidRefreshTokenException;
 import com.hlulani.sanelle.repository.RefreshTokenRepository;
 import com.hlulani.sanelle.repository.UserRepository;
+import com.hlulani.sanelle.security.AccountRoles;
 import com.hlulani.sanelle.security.JwtService;
 import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Service;
@@ -26,15 +27,19 @@ public class AuthTokenService {
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokens;
     private final UserRepository users;
+    private final AccountRoles roles;
 
-    public AuthTokenService(JwtService jwtService, RefreshTokenRepository refreshTokens, UserRepository users) {
+    public AuthTokenService(JwtService jwtService, RefreshTokenRepository refreshTokens, UserRepository users,
+                            AccountRoles roles) {
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
         this.users = users;
+        this.roles = roles;
     }
 
     public TokenPair issueFor(User user) {
-        String access = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getUsername());
+        String access = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getUsername(),
+                user.getName(), roles.of(user.getEmail()));
         String refresh = jwtService.generateRefreshToken(user.getId(), user.getEmail());
         refreshTokens.save(new RefreshToken(user.getId(), refresh, jwtService.expiresAt(refresh)));
         return new TokenPair(access, refresh);
@@ -57,6 +62,11 @@ public class AuthTokenService {
 
     public void revoke(String refreshToken) {
         refreshTokens.findByToken(refreshToken).ifPresent(RefreshToken::revoke);
+    }
+
+    /** Revokes every session an account has open, e.g. after its password changes. */
+    public void revokeAllFor(UUID userId) {
+        refreshTokens.revokeAllByUserId(userId);
     }
 
     /** Removes every token an account was ever issued, so none of its sessions can continue. */

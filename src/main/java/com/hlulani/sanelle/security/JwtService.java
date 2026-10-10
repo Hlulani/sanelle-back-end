@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +18,8 @@ public class JwtService {
 
     private static final String USER_ID = "uid";
     private static final String USERNAME = "username";
+    private static final String NAME = "name";
+    private static final String ROLES = "roles";
     private static final String TYPE = "typ";
     private static final String REFRESH = "refresh";
 
@@ -31,13 +34,16 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateAccessToken(UUID userId, String email, String username) {
+    /** An access token naming the person ({@code name}) and what they may do ({@code roles}, possibly empty). */
+    public String generateAccessToken(UUID userId, String email, String username, String name, List<String> roles) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(email)
                 .claim(USER_ID, userId.toString())
                 .claim(USERNAME, username)
+                .claim(NAME, name)
+                .claim(ROLES, List.copyOf(roles))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(props.accessMinutes(), ChronoUnit.MINUTES)))
                 .signWith(key)

@@ -3,12 +3,18 @@ package com.hlulani.sanelle.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.hlulani.sanelle.controller.DevOutboxController;
+import com.hlulani.sanelle.mail.DevOutbox;
 import com.hlulani.sanelle.support.IntegrationTest;
+import com.hlulani.sanelle.support.TestAccounts;
+import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,15 +30,18 @@ class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private ApplicationContext context;
+
+    /** A confirmed, signed-in account whose username was chosen at sign-up. */
     private Map<?, ?> register() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
-        String body = objectMapper.writeValueAsString(Map.of(
-                "email", "auth-" + suffix + "@example.com", "username", "a" + suffix, "password", "TestPass123!"));
-        String json = mockMvc.perform(post("/api/v1/auth/register").contentType("application/json").content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.username").value("a" + suffix))
-                .andReturn().getResponse().getContentAsString();
-        return objectMapper.readValue(json, Map.class);
+        Map<?, ?> session = new TestAccounts(mockMvc, objectMapper, jdbc).signedIn("auth", "a" + suffix);
+        assertThat(((Map<?, ?>) session.get("user")).get("username")).isEqualTo("a" + suffix);
+        return session;
     }
 
     private String refreshBody(Object token) throws Exception {
@@ -123,5 +132,17 @@ class AuthControllerTest {
     @Test
     void deletingWithoutSigningInIsRefused() throws Exception {
         mockMvc.perform(delete("/api/v1/auth/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theDevOutboxDoesNotExistUnlessSwitchedOn() throws Exception {
+        assertThat(context.getBeansOfType(DevOutbox.class)).isEmpty();
+        assertThat(context.getBeansOfType(DevOutboxController.class)).isEmpty();
+
+        mockMvc.perform(get("/api/v1/dev/outbox").param("email", "anyone@example.com"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/dev/outbox").param("email", "anyone@example.com")
+                        .header("Authorization", "Bearer " + register().get("accessToken")))
+                .andExpect(status().isNotFound());
     }
 }
