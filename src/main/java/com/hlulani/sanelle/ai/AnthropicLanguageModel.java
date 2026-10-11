@@ -30,7 +30,7 @@ public class AnthropicLanguageModel implements LanguageModel {
     public AnthropicLanguageModel(@Value("${app.ai.anthropic-api-key:}") String apiKey,
                                   @Value("${app.ai.model:claude-sonnet-5-5}") String model,
                                   ObjectMapper json) {
-        this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.apiKey = apiKey == null ? "" : apiKey.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
         this.model = model;
         this.json = json;
     }
@@ -43,7 +43,10 @@ public class AnthropicLanguageModel implements LanguageModel {
     @Override
     public String unavailableReason() {
         if (available()) return null;
-        return apiKey.isEmpty() ? "no-key" : "not-an-api-key";
+        if (apiKey.isEmpty()) return "no-key";
+        // Only the token's public type label (e.g. "sk-ant-usr"), never any of the secret part.
+        var type = java.util.regex.Pattern.compile("^sk-ant-[a-z]{3}").matcher(apiKey);
+        return "not-an-api-key (" + (type.find() ? type.group() : "unrecognised format") + ")";
     }
 
     @Override
