@@ -19,8 +19,9 @@ public class InsightsController {
 
     /** Whether AI drafting is switched on, so the app knows whether to offer it. */
     @GetMapping("/status")
-    public Map<String, Boolean> status() {
-        return Map.of("available", insights.available());
+    public Map<String, Object> status() {
+        String reason = insights.unavailableReason();
+        return reason == null ? Map.of("available", true) : Map.of("available", false, "reason", reason);
     }
 
     @PostMapping("/insights")

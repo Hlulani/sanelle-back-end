@@ -72,6 +72,10 @@ public class InsightsService {
         return model.available();
     }
 
+    public String unavailableReason() {
+        return model.unavailableReason();
+    }
+
     public InsightsResponse draft(UUID userId, InsightsRequest request) {
         if (!model.available()) throw AiException.unavailable();
         allow(userId);

@@ -41,6 +41,12 @@ public class AnthropicLanguageModel implements LanguageModel {
     }
 
     @Override
+    public String unavailableReason() {
+        if (available()) return null;
+        return apiKey.isEmpty() ? "no-key" : "not-an-api-key";
+    }
+
+    @Override
     public JsonNode structured(String system, String user, String toolName, JsonNode toolSchema) {
         if (!available()) throw AiException.unavailable();
         ObjectNode body = json.createObjectNode()

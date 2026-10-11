@@ -38,7 +38,8 @@ class AiInsightsApiTest {
         var token = (String) new TestAccounts(mvc, mapper, jdbc).signedIn("ai-status", "ai_reader").get("accessToken");
         mvc.perform(get("/api/v1/ai/status").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.available").value(false));
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.reason").value("no-key"));
         mvc.perform(post("/api/v1/ai/insights").header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON).content(REQUEST))
                 .andExpect(status().isServiceUnavailable());

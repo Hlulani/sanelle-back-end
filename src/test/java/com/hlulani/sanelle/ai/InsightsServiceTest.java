@@ -109,5 +109,8 @@ class InsightsServiceTest {
         assertThat(new AnthropicLanguageModel("", "m", json).available()).isFalse();
         assertThat(new AnthropicLanguageModel("sk-ant-usr-not-an-api-key", "m", json).available()).isFalse();
         assertThat(new AnthropicLanguageModel("sk-ant-api03-example", "m", json).available()).isTrue();
+        assertThat(new AnthropicLanguageModel("", "m", json).unavailableReason()).isEqualTo("no-key");
+        assertThat(new AnthropicLanguageModel("sk-ant-usr-x", "m", json).unavailableReason()).isEqualTo("not-an-api-key");
+        assertThat(new AnthropicLanguageModel(" sk-ant-api03-x\n", "m", json).unavailableReason()).isNull();
     }
 }
