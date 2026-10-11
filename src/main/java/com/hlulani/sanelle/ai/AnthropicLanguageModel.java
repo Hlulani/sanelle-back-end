@@ -73,13 +73,14 @@ public class AnthropicLanguageModel implements LanguageModel {
         ObjectNode body = json.createObjectNode()
                 .put("model", model)
                 .put("max_tokens", 1500)
-                .put("system", system);
+                .put("system", system + "\n\nAlways answer by calling the " + toolName + " tool, and nothing else.");
         body.putArray("messages").addObject().put("role", "user").put("content", user);
         body.putArray("tools").addObject()
                 .put("name", toolName)
                 .put("description", "Return the drafts for the person to review.")
                 .set("input_schema", toolSchema);
-        body.putObject("tool_choice").put("type", "tool").put("name", toolName);
+        // Newer models don't accept a forced tool, so the prompt asks for it and "auto" allows it.
+        body.putObject("tool_choice").put("type", "auto");
         try {
             HttpRequest request = HttpRequest.newBuilder(MESSAGES)
                     .timeout(Duration.ofSeconds(45))
@@ -96,9 +97,22 @@ public class AnthropicLanguageModel implements LanguageModel {
             }
             if (response.statusCode() == 429) throw AiException.rateLimited();
             if (response.statusCode() / 100 != 2) throw AiException.failed();
-            for (JsonNode block : json.readTree(response.body()).path("content")) {
+            JsonNode content = json.readTree(response.body()).path("content");
+            for (JsonNode block : content) {
                 if ("tool_use".equals(block.path("type").asText()) && toolName.equals(block.path("name").asText()))
                     return block.path("input");
+            }
+            // If it answered in text instead, accept a JSON object there; the same checks still apply.
+            for (JsonNode block : content) {
+                String text = block.path("text").asText("");
+                int start = text.indexOf('{'), end = text.lastIndexOf('}');
+                if ("text".equals(block.path("type").asText()) && start >= 0 && end > start) {
+                    try {
+                        return json.readTree(text.substring(start, end + 1));
+                    } catch (Exception ignored) {
+                        // fall through
+                    }
+                }
             }
             lastError = "no tool_use block in the reply";
             throw AiException.failed();
