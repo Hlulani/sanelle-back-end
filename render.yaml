@@ -39,3 +39,6 @@ services:
         value: false
       - key: APP_EVIDENCE_EDITORS
         value: hlullyr@gmail.com
+      # Optional. Without it the app keeps its own rule-based suggestions and offers no AI.
+      - key: ANTHROPIC_API_KEY
+        sync: false

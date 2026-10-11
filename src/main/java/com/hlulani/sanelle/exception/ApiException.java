@@ -7,7 +7,7 @@ package com.hlulani.sanelle.exception;
  */
 public abstract class ApiException extends RuntimeException {
 
-    public enum Kind { BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT }
+    public enum Kind { BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, TOO_MANY_REQUESTS, UNAVAILABLE }
 
     private final Kind kind;
     private final ErrorCode code;

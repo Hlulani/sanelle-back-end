@@ -33,5 +33,10 @@ public enum ErrorCode {
     MEAL_NOT_FOUND,
     CHALLENGE_NOT_FOUND,
     NOT_CHALLENGE_MEMBER,
-    UNKNOWN_ALLERGEN
+    UNKNOWN_ALLERGEN,
+
+    // AI drafting
+    AI_UNAVAILABLE,
+    AI_RATE_LIMITED,
+    AI_FAILED
 }
