@@ -73,6 +73,20 @@ class InsightsServiceTest {
     }
 
     @Test
+    void usesEachQuoteForOneExplanationOnly() throws Exception {
+        InsightsRequest req = new InsightsRequest(REQUEST.checkins(), REQUEST.facts(),
+                List.of(new InsightsRequest.Explanation("C36", "Bleeding words", "s"),
+                        new InsightsRequest.Explanation("C14", "Being heard", "s")),
+                List.of());
+        FakeModel model = new FakeModel(true, draft("""
+                {"brief":"","questions":[],"matches":[
+                  {"claimId":"C36","quote":"Flooding at night"},{"claimId":"C14","quote":"flooding at night"}]}
+                """));
+        assertThat(new InsightsService(model, json).draft(UUID.randomUUID(), req).matches())
+                .containsExactly(new InsightsResponse.Match("C36", "Flooding at night"));
+    }
+
+    @Test
     void dropsAnythingThatBreaksARuleInsteadOfRepairingIt() throws Exception {
         FakeModel model = new FakeModel(true, draft("""
                 {"brief":"Your heavy bleeding is caused by the fibroid.",

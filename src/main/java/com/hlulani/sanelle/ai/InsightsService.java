@@ -49,6 +49,9 @@ public class InsightsService {
             - Each question's "why" states the pattern it comes from, reusing the exact counts from the facts.
             - The brief is first person ("My main concern..."), at most 4 short sentences, and may quote her notes.
             - Matches: only explanation ids from the list provided. The quote must be copied exactly from one of her notes.
+            - Match only when the explanation is directly about what the quote describes (for example flooding or \
+            clots with heavy-bleeding wording; dizziness with anaemia; feeling dismissed with being heard). Never match \
+            an explanation about how Sanelle counts or stores data. Use each quote at most once.
             - Do not repeat questions she already saved. Return fewer items rather than weak ones.
             """;
 
@@ -115,7 +118,7 @@ public class InsightsService {
             String quote = m.path("quote").asText("").trim();
             if (!allowed.contains(id) || quote.isEmpty() || quote.length() > 200) continue;
             if (!notes.contains(quote.toLowerCase(Locale.ROOT))) continue;
-            if (matches.stream().anyMatch(x -> x.claimId().equals(id))) continue;
+            if (matches.stream().anyMatch(x -> x.claimId().equals(id) || x.quote().equalsIgnoreCase(quote))) continue;
             matches.add(new InsightsResponse.Match(id, quote));
             if (matches.size() == 3) break;
         }
