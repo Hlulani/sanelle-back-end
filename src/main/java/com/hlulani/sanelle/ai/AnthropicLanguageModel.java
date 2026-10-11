@@ -25,6 +25,23 @@ public class AnthropicLanguageModel implements LanguageModel {
     private final String apiKey;
     /** Set when Anthropic refuses the key, so the app stops offering AI until the key is replaced. */
     private volatile boolean rejected;
+    private volatile String lastError;
+
+    @Override
+    public String lastError() {
+        return lastError;
+    }
+
+    /** Keeps only Anthropic's error type and message; the request itself is never stored. */
+    private void remember(int status, String body) {
+        try {
+            JsonNode error = json.readTree(body).path("error");
+            lastError = status + " " + error.path("type").asText("") + ": " + error.path("message").asText("");
+        } catch (Exception e) {
+            lastError = status + " (no error body)";
+        }
+        if (lastError.length() > 300) lastError = lastError.substring(0, 300);
+    }
     private final String model;
     private final ObjectMapper json;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -72,6 +89,7 @@ public class AnthropicLanguageModel implements LanguageModel {
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
                     .build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) remember(response.statusCode(), response.body());
             if (response.statusCode() == 401 || response.statusCode() == 403) {
                 rejected = true;
                 throw AiException.unavailable();
@@ -82,6 +100,7 @@ public class AnthropicLanguageModel implements LanguageModel {
                 if ("tool_use".equals(block.path("type").asText()) && toolName.equals(block.path("name").asText()))
                     return block.path("input");
             }
+            lastError = "no tool_use block in the reply";
             throw AiException.failed();
         } catch (AiException e) {
             throw e;
@@ -89,6 +108,7 @@ public class AnthropicLanguageModel implements LanguageModel {
             Thread.currentThread().interrupt();
             throw AiException.failed();
         } catch (Exception e) {
+            lastError = e.getClass().getSimpleName();
             throw AiException.failed();
         }
     }

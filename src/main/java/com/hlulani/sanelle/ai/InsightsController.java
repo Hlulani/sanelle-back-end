@@ -20,8 +20,12 @@ public class InsightsController {
     /** Whether AI drafting is switched on, so the app knows whether to offer it. */
     @GetMapping("/status")
     public Map<String, Object> status() {
+        var out = new java.util.LinkedHashMap<String, Object>();
         String reason = insights.unavailableReason();
-        return reason == null ? Map.of("available", true) : Map.of("available", false, "reason", reason);
+        out.put("available", reason == null);
+        if (reason != null) out.put("reason", reason);
+        if (insights.lastError() != null) out.put("lastError", insights.lastError());
+        return out;
     }
 
     @PostMapping("/insights")
