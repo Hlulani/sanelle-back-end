@@ -79,6 +79,10 @@ public class InsightsService {
         return model.lastError();
     }
 
+    public String pipeline() {
+        return model.pipeline();
+    }
+
     public String unavailableReason() {
         return model.unavailableReason();
     }

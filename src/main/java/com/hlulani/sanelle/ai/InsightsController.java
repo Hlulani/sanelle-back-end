@@ -24,6 +24,7 @@ public class InsightsController {
         String reason = insights.unavailableReason();
         out.put("available", reason == null);
         if (reason != null) out.put("reason", reason);
+        out.put("pipeline", insights.pipeline());
         if (insights.lastError() != null) out.put("lastError", insights.lastError());
         return out;
     }

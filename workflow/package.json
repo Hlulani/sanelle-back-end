@@ -1,0 +1,14 @@
+{
+  "name": "sanelle-ai-workflow",
+  "private": true,
+  "description": "Sanelle AI drafting as a Render Workflow: draft, independent review, then the API's own rule checks.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test src/*.test.js"
+  },
+  "dependencies": {
+    "@renderinc/sdk": "1.2.0"
+  }
+}

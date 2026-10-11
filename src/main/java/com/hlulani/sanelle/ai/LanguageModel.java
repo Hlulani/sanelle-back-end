@@ -7,12 +7,17 @@ public interface LanguageModel {
 
     boolean available();
 
-    /** Why drafting is off, without revealing anything about the key. Null when available. */
     /** Anthropic's last error type and message, for diagnosis. Never contains her data. */
     default String lastError() {
         return null;
     }
 
+    /** Which path the last draft took, for the status endpoint. */
+    default String pipeline() {
+        return "direct";
+    }
+
+    /** Why drafting is off, without revealing anything about the key. Null when available. */
     default String unavailableReason() {
         return available() ? null : "unavailable";
     }

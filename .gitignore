@@ -43,3 +43,6 @@ application-dev.*
 .env
 uploads/
 .claude/
+
+# Render Workflow (Sanelle AI)
+workflow/node_modules/
