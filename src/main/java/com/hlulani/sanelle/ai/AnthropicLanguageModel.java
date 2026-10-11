@@ -23,6 +23,8 @@ public class AnthropicLanguageModel implements LanguageModel {
     private static final URI MESSAGES = URI.create("https://api.anthropic.com/v1/messages");
 
     private final String apiKey;
+    /** Set when Anthropic refuses the key, so the app stops offering AI until the key is replaced. */
+    private volatile boolean rejected;
     private final String model;
     private final ObjectMapper json;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -37,16 +39,15 @@ public class AnthropicLanguageModel implements LanguageModel {
 
     @Override
     public boolean available() {
-        return apiKey.startsWith("sk-ant-api");
+        // Key formats vary (account-linked keys start sk-ant-usr-), so Anthropic decides, not a prefix.
+        return !apiKey.isEmpty() && !rejected;
     }
 
     @Override
     public String unavailableReason() {
         if (available()) return null;
         if (apiKey.isEmpty()) return "no-key";
-        // Only the token's public type label (e.g. "sk-ant-usr"), never any of the secret part.
-        var type = java.util.regex.Pattern.compile("^sk-ant-[a-z]{3}").matcher(apiKey);
-        return "not-an-api-key (" + (type.find() ? type.group() : "unrecognised format") + ")";
+        return "key-rejected-by-anthropic";
     }
 
     @Override
@@ -71,6 +72,10 @@ public class AnthropicLanguageModel implements LanguageModel {
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
                     .build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                rejected = true;
+                throw AiException.unavailable();
+            }
             if (response.statusCode() == 429) throw AiException.rateLimited();
             if (response.statusCode() / 100 != 2) throw AiException.failed();
             for (JsonNode block : json.readTree(response.body()).path("content")) {
